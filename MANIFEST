@@ -6,4 +6,5 @@ Music-Tag-Lyrics-0.28.tar.gz
 README
 t/pod.t
 t/test.t
+eg/printlyrics.pl
 META.yml                                 Module meta-data (added by MakeMaker)

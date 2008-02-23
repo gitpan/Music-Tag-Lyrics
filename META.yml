@@ -1,8 +1,8 @@
 --- #YAML:1.0
 name:                Music-Tag-Lyrics
-version:             0.28
+version:             0.29
 abstract:            Screen Scraping plugin for downloading lyrics from the web.  
-license:             ~
+license:             perl
 author:              
     - Edward Allen (ealleniii _at_ cpan _dot_ org)
 generated_by:        ExtUtils::MakeMaker version 6.42

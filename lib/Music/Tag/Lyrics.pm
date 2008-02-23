@@ -1,5 +1,5 @@
 package Music::Tag::Lyrics;
-our $VERSION = 0.28;
+our $VERSION = 0.29;
 our @AUTOPLUGIN = qw();
 
 # Copyright (c) 2007 Edward Allen III. Some rights reserved.
@@ -43,6 +43,7 @@ Artist, Album, and Title are required to be set before using this plugin.
 =cut
 
 use strict;
+use warnings;
 
 #use Music::Tag::Rget;
 use URI::WithBase;
@@ -56,7 +57,7 @@ sub _default_options {
 	'lyrics_path' => "/mnt/media/music/Lyrics/"
 }
 
-sub url_escape {
+sub _url_escape {
     my $in = shift;
     $in =~ s/ /+/g;
     return uri_escape_utf8( encode( "utf8", $in ), "^A-Za-z0-9\-_.!\/?=\+" );
@@ -93,7 +94,7 @@ Looks for $filename.txt
 
         unless ($lyrics) {
             $self->status("Checking for filename...");
-            $lyrics = $self->get_lyrics_from_file( $self->info->filename );
+            $lyrics = $self->_get_lyrics_from_file( $self->info->filename );
         }
 
 =pod
@@ -105,7 +106,7 @@ Looks for $filename.txt
 		unless ($lyrics) {
 			$self->status("Checking WeAreThelyrics.com Lyrics...");
             $lyrics =
-              $self->get_lyrics_watl( $self->info->artist, $self->info->title, $self->info->album );
+              $self->_get_lyrics_watl( $self->info->artist, $self->info->title, $self->info->album );
 		}
 =pod
 
@@ -116,7 +117,7 @@ Looks for $filename.txt
 		unless ($lyrics) {
 			$self->status("Checking nomorelyrics.com Lyrics...");
             $lyrics =
-              $self->get_lyrics_nml( $self->info->artist, $self->info->title, $self->info->album );
+              $self->_get_lyrics_nml( $self->info->artist, $self->info->title, $self->info->album );
 		}
 
 
@@ -129,7 +130,7 @@ Looks for $filename.txt
         unless ($lyrics) {
             $self->status("Checking UC Lyrics...");
             $lyrics =
-              $self->get_lyrics_uc( $self->info->artist, $self->info->title, $self->info->album );
+              $self->_get_lyrics_uc( $self->info->artist, $self->info->title, $self->info->album );
         }
 
 =pod
@@ -141,7 +142,7 @@ Looks for $filename.txt
         unless ($lyrics) {
             $self->status("Checking HOL Lyrics...");
             $lyrics =
-              $self->get_lyrics_hol( $self->info->artist, $self->info->title, $self->info->album );
+              $self->_get_lyrics_hol( $self->info->artist, $self->info->title, $self->info->album );
         }
 
 =pod
@@ -153,7 +154,7 @@ Looks for $filename.txt
         unless ($lyrics) {
             $self->status("Checking Leos Lyrics...");
             $lyrics =
-              $self->get_lyrics_leos( $self->info->artist, $self->info->title, $self->info->album );
+              $self->_get_lyrics_leos( $self->info->artist, $self->info->title, $self->info->album );
         }
 
 =pod
@@ -164,7 +165,7 @@ Looks for $filename.txt
 
 	    unless ($lyrics) {
 	        $self->status("Checking Lyricsmania Lyrics...\n");
-	        $lyrics = $self->get_lyrics_mania( $self->info->artist, $self->info->title, $self->info->album );
+	        $lyrics = $self->_get_lyrics_mania( $self->info->artist, $self->info->title, $self->info->album );
 	    }
         if ($lyrics) {
             my $lyricsl = $lyrics;
@@ -197,7 +198,7 @@ sub fetch_url {
     }
     $file =~ s/^https?:\/\///;
     $file =~ s/\?\&/_/g;
-    my $dir = dirname($file);
+    my $dir = _dirname($file);
     if ( ( -e $file ) && ( not $cache ) ) {
         unlink $file;
     }
@@ -213,7 +214,7 @@ sub fetch_url {
     }
 }
 
-sub simplify {
+sub _simplify {
     my $self = shift;
     my $in   = shift;
     my $ret  = $in;
@@ -222,11 +223,11 @@ sub simplify {
     return lc($ret);
 }
 
-sub get_lyrics_leos {
+sub _get_lyrics_leos {
     my $self   = shift;
-    my $artist = url_escape(shift);
-    my $song   = url_escape(shift);
-    my $album  = url_escape(shift);
+    my $artist = _url_escape(shift);
+    my $song   = _url_escape(shift);
+    my $album  = _url_escape(shift);
 
     my $res =
       $self->fetch_url(
@@ -237,7 +238,7 @@ sub get_lyrics_leos {
 	if ((ref $xml) &&  (exists $xml->{searchResults}) && (ref $xml->{searchResults}) && (exists $xml->{searchResults}->{result}) && (ref $xml->{searchResults}->{result})) {
 		if ($xml->{searchResults}->{result}->{exactMatch} eq "true") {
 			my $hid = $xml->{searchResults}->{result}->{hid};
-			return $self->get_lyrics_leos_byhid($hid);
+			return $self->_get_lyrics_leos_byhid($hid);
 		}
 	}
     else {
@@ -245,9 +246,9 @@ sub get_lyrics_leos {
     }
 }
 
-sub get_lyrics_leos_byhid {
+sub _get_lyrics_leos_byhid {
     my $self = shift;
-    my $hid  = url_escape(shift);
+    my $hid  = _url_escape(shift);
     my $res  = $self->fetch_url("http://api.leoslyrics.com/api_lyrics.php?auth=LeosLyrics5&hid=$hid");
 	my $xml= XML::Simple::XMLin($res);
 	if ((ref $xml) && (exists $xml->{lyric}) && (ref $xml->{lyric}) && (exists $xml->{lyric}->{text})) {
@@ -260,7 +261,7 @@ sub get_lyrics_leos_byhid {
 	}
 }
 
-sub get_lyrics_mania {
+sub _get_lyrics_mania {
     my $self   = shift;
     my $artist = shift;
     my $song   = shift;
@@ -268,26 +269,26 @@ sub get_lyrics_mania {
     my $base   = shift || 'http://www.lyricsmania.com';
 
     my $res =
-      $self->fetch_url( "$base/search.php", "k=" . url_escape($artist) . "&c=artist&I1i=1", 0 );
+      $self->fetch_url( "$base/search.php", "k=" . _url_escape($artist) . "&c=artist&I1i=1", 0 );
 
 #print $res;
 #<a href="http://www.lyricsmania.com/lyrics/tina_dico_lyrics_7439/" title="Tina Dico lyrics">Tina Dico</a>
-    my $simpleartist = $self->simplify($artist);
-    my $simplesong   = $self->simplify($song);
+    my $simpleartist = $self->_simplify($artist);
+    my $simplesong   = $self->_simplify($song);
     while ( $res =~ /href="[^"]*(\/lyrics\/[^"]+)"[^>]*>([^<]+)\</g ) {
         my $url      = $base . $1;
         my $canidate = $2;
-        if ( $self->simplify($canidate) eq $simpleartist ) {
-            return $self->get_lyrics_mania_artist( $url, $artist, $song, $album );
+        if ( $self->_simplify($canidate) eq $simpleartist ) {
+            return $self->_get_lyrics_mania_artist( $url, $artist, $song, $album );
         }
-        elsif ( $self->simplify($canidate) eq $simplesong ) {
-            return $self->get_lyrics_mania_song( $url, $artist, $song, $album );
+        elsif ( $self->_simplify($canidate) eq $simplesong ) {
+            return $self->_get_lyrics_mania_song( $url, $artist, $song, $album );
         }
     }
     return undef;
 }
 
-sub get_lyrics_mania_artist {
+sub _get_lyrics_mania_artist {
     my $self   = shift;
     my $url    = shift;
     my $artist = shift;
@@ -299,18 +300,18 @@ sub get_lyrics_mania_artist {
 #<a href="http://www.lyricsmania.com/lyrics/tina_dico_lyrics_7439/in_the_red_lyrics_25123/losing_lyrics_275507.html" title="Losing lyrics">Losing</a><br>
 #<a href="http://www.lyricsmania.com/lyrics/abigail_washburn_lyrics_4654/song_of_the_traveling_daughter_lyrics_15187/sometimes_lyrics_176271.html" title="Sometimes lyrics">Sometimes</a><br>
 #
-    my $simplesong = $self->simplify($song);
+    my $simplesong = $self->_simplify($song);
     while ( $res =~ /href="[^"]*(\/lyrics\/[^"]+)"[^>]*>([^<]+)</ig ) {
         my $url      = $base . $1;
         my $canidate = $2;
-        if ( $self->simplify($canidate) eq $simplesong ) {
-            return $self->get_lyrics_mania_song( $url, $artist, $song, $album );
+        if ( $self->_simplify($canidate) eq $simplesong ) {
+            return $self->_get_lyrics_mania_song( $url, $artist, $song, $album );
         }
     }
     return undef;
 }
 
-sub get_lyrics_mania_song {
+sub _get_lyrics_mania_song {
     my $self   = shift;
     my $url    = shift;
     my $artist = shift;
@@ -364,27 +365,31 @@ sub get_lyrics_mania_song {
     }
 }
 
-sub basename {
+sub _basename {
 	my $file = shift;
-	my ($vol, $dir, $base) = File::Spec->splitpath($file);
-	return $base;
+	if ($file) {
+		my ($vol, $dir, $base) = File::Spec->splitpath($file);
+		return $base;
+	}
 }
 
-sub dirname {
+sub _dirname {
 	my $file = shift;
-	my ($vol, $dir, $base) = File::Spec->splitpath($file);
-	return File::Spec->catpath($vol, $dir);
+	if ($file) {
+		my ($vol, $dir, $base) = File::Spec->splitpath($file);
+		return File::Spec->catpath($vol, $dir);
+	}
 }
 
-sub get_lyrics_from_file {
+sub _get_lyrics_from_file {
     my $self     = shift;
     my $filename = shift;
     my $in;
     if ((defined $filename) && ( -e $filename . ".txt " )) {
         $in = $filename . ".txt";
     }
-    elsif ( -e $self->options->{lyrics_path} . basename($filename) . ".txt" ) {
-        $in =  File::Spec->catdir($self->options->{lyrics_path}, basename($filename) . ".txt");
+    elsif ( -e $self->options->{lyrics_path} . _basename($filename) . ".txt" ) {
+        $in =  File::Spec->catdir($self->options->{lyrics_path}, _basename($filename) . ".txt");
     }
     if ($in) {
         if ( open( IN, $in ) ) {
@@ -404,7 +409,7 @@ sub get_lyrics_from_file {
 
 }
 
-sub get_lyrics_hol {
+sub _get_lyrics_hol {
     my $self   = shift;
     my $artist = shift;
     my $song   = shift;
@@ -412,14 +417,14 @@ sub get_lyrics_hol {
     my $base   = shift || 'http://www.houseoflyrics.com';
 
     my $artists = {};
-    $self->get_lyrics_hol_alpha( lc( substr( $self->simplify($artist), 0, 1 ) ), $base, $artists );
-    $self->get_lyrics_hol_alpha( 't', $base, $artists );
+    $self->_get_lyrics_hol_alpha( lc( substr( $self->_simplify($artist), 0, 1 ) ), $base, $artists );
+    $self->_get_lyrics_hol_alpha( 't', $base, $artists );
 
-    if ( exists $artists->{ $self->simplify($artist) } ) {
+    if ( exists $artists->{ $self->_simplify($artist) } ) {
         my $songs = {};
-        $self->get_lyrics_hol_artist( $artists->{ $self->simplify($artist) }, $base, $songs );
-        if ( exists $songs->{ $self->simplify($song) } ) {
-            return $self->get_lyrics_hol_song( $songs->{ $self->simplify($song) } );
+        $self->_get_lyrics_hol_artist( $artists->{ $self->_simplify($artist) }, $base, $songs );
+        if ( exists $songs->{ $self->_simplify($song) } ) {
+            return $self->_get_lyrics_hol_song( $songs->{ $self->_simplify($song) } );
         }
         else {
             return undef;
@@ -430,7 +435,7 @@ sub get_lyrics_hol {
     }
 }
 
-sub get_lyrics_hol_alpha {
+sub _get_lyrics_hol_alpha {
     my $self  = shift;
     my $alpha = shift;
     my $base  = shift;
@@ -441,12 +446,12 @@ sub get_lyrics_hol_alpha {
     $res =~ s/[\n\r]/ /g;
 
     while ( $res =~ /\<A HREF=\"(\/lyrics\/[^"]*)\"[^\>]*\>([^<]*) - Lyrics\</mg ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_hol_artist {
+sub _get_lyrics_hol_artist {
     my $self = shift;
     my $url  = shift;
     my $base = shift;
@@ -454,12 +459,12 @@ sub get_lyrics_hol_artist {
     my $res  = $self->fetch_url( "$url", 1 );
     $res =~ s/[\n\r]/ /g;
     while ( $res =~ /\<A HREF=\"(\/lyrics\/[^"]*)\"[^\>]*\>([^<]*)\</mg ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_hol_song {
+sub _get_lyrics_hol_song {
     my $self = shift;
     my $url  = shift;
     my $res  = $self->fetch_url( "$url", 1 );
@@ -491,17 +496,17 @@ sub get_lyrics_hol_song {
     }
 }
 
-sub get_lyrics_watl {
+sub _get_lyrics_watl {
 	my $self = shift;
     my $artist = shift;
     my $song   = shift;
     my $album  = shift;
     my $base   = shift || 'http://www.wearethelyrics.com';
-    my $artists = $self->get_lyrics_watl_alpha( lc( substr( $self->simplify($artist), 0, 1 ) ), $base );
-    if ( exists $artists->{ $self->simplify($artist) } ) {
-        my $songs = $self->get_lyrics_watl_artist( $artists->{ $self->simplify($artist) }, $base );
-        if ( exists $songs->{ $self->simplify($song) } ) {
-            return $self->get_lyrics_watl_song( $songs->{ $self->simplify($song) } );
+    my $artists = $self->_get_lyrics_watl_alpha( lc( substr( $self->_simplify($artist), 0, 1 ) ), $base );
+    if ( exists $artists->{ $self->_simplify($artist) } ) {
+        my $songs = $self->_get_lyrics_watl_artist( $artists->{ $self->_simplify($artist) }, $base );
+        if ( exists $songs->{ $self->_simplify($song) } ) {
+            return $self->_get_lyrics_watl_song( $songs->{ $self->_simplify($song) } );
         }
         else {
             return undef;
@@ -512,7 +517,7 @@ sub get_lyrics_watl {
     }
 }
 
-sub get_lyrics_watl_alpha {
+sub _get_lyrics_watl_alpha {
     my $self  = shift;
     my $alpha = shift;
     my $base  = shift;
@@ -524,12 +529,12 @@ sub get_lyrics_watl_alpha {
 
 	#<a href="/0/a_fine_frenzy_lyrics_12631.html">A Fine Frenzy</a><br>
     while ( $res =~ /\<a href=\"(\/\d\/[^"]*lyrics_\d+\.html)\"[^\>]*\>([^<]*)\</mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_watl_artist {
+sub _get_lyrics_watl_artist {
     my $self = shift;
     my $url  = shift;
     my $base = shift;
@@ -538,12 +543,12 @@ sub get_lyrics_watl_artist {
     $res =~ s/[\n\r]/ /g;
 	#<a href="/0/a_fine_frenzy_lyrics_12631/one_cell_in_the_sea_lyrics_69412/rangers_lyrics_672507.html">Rangers</a><br>
     while ( $res =~ /\<a href=\"(\/\d\/[^"]*lyrics_\d+\.html)\"[^\>]*\>([^<]*)\</mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_watl_song {
+sub _get_lyrics_watl_song {
     my $self = shift;
     my $url  = shift;
     my $res  = $self->fetch_url( "$url", 1 );
@@ -577,17 +582,17 @@ sub get_lyrics_watl_song {
     }
 }
 
-sub get_lyrics_nml {
+sub _get_lyrics_nml {
 	my $self = shift;
     my $artist = shift;
     my $song   = shift;
     my $album  = shift;
     my $base   = shift || 'http://www.nomorelyrics.net';
-    my $artists = $self->get_lyrics_nml_alpha( lc( substr( $self->simplify($artist), 0, 1 ) ), $base );
-    if ( exists $artists->{ $self->simplify($artist) } ) {
-        my $songs = $self->get_lyrics_nml_artist( $artists->{ $self->simplify($artist) }, $base );
-        if ( exists $songs->{ $self->simplify($song) } ) {
-            return $self->get_lyrics_nml_song( $songs->{ $self->simplify($song) } );
+    my $artists = $self->_get_lyrics_nml_alpha( lc( substr( $self->_simplify($artist), 0, 1 ) ), $base );
+    if ( exists $artists->{ $self->_simplify($artist) } ) {
+        my $songs = $self->_get_lyrics_nml_artist( $artists->{ $self->_simplify($artist) }, $base );
+        if ( exists $songs->{ $self->_simplify($song) } ) {
+            return $self->_get_lyrics_nml_song( $songs->{ $self->_simplify($song) } );
         }
         else {
             return undef;
@@ -598,7 +603,7 @@ sub get_lyrics_nml {
     }
 }
 
-sub get_lyrics_nml_alpha {
+sub _get_lyrics_nml_alpha {
     my $self  = shift;
     my $alpha = shift;
     my $base  = shift;
@@ -611,12 +616,12 @@ sub get_lyrics_nml_alpha {
 	#<a href="/angela_mccluskey-lyrics.html" title="Angela McCluskey lyrics"><b><strong><font class="title2">Angela McCluskey lyrics</font></strong></b></a>
 
     while ( $res =~ /\<a href=\"([^"]*lyrics.html)\"[^\>]*title=\"([^\>\"]*) lyrics\"/mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_nml_artist {
+sub _get_lyrics_nml_artist {
     my $self = shift;
     my $url  = shift;
     my $base = shift;
@@ -625,12 +630,12 @@ sub get_lyrics_nml_artist {
     $res =~ s/[\n\r]/ /g;
 	#<a href="/ani_difranco-lyrics/1562-outta_me_onto_you-lyrics.html" title="Outta Me, Onto You lyrics"><stron
     while ( $res =~ /\<a href=\"([^"]*lyrics.html)\"[^\>]*title=\"([^\>\"]*) lyrics\"/mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_nml_song {
+sub _get_lyrics_nml_song {
     my $self = shift;
     my $url  = shift;
     my $res  = $self->fetch_url( "$url", 1 );
@@ -670,20 +675,20 @@ sub get_lyrics_nml_song {
 
 
 
-sub get_lyrics_uc {
+sub _get_lyrics_uc {
     my $self   = shift;
     my $artist = shift;
     my $song   = shift;
     my $album  = shift;
     my $base   = shift || 'http://www.uppercutmusic.com';
 
-    my $artists = $self->get_lyrics_uc_alpha( lc( substr( $self->simplify($artist), 0, 1 ) ), $base );
+    my $artists = $self->_get_lyrics_uc_alpha( lc( substr( $self->_simplify($artist), 0, 1 ) ), $base );
 
-    if ( exists $artists->{ $self->simplify($artist) } ) {
+    if ( exists $artists->{ $self->_simplify($artist) } ) {
         my $songs = {};
-        $self->get_lyrics_uc_artist( $artists->{ $self->simplify($artist) }, $base, $songs );
-        if ( exists $songs->{ $self->simplify($song) } ) {
-            return $self->get_lyrics_uc_song( $songs->{ $self->simplify($song) } );
+        $self->_get_lyrics_uc_artist( $artists->{ $self->_simplify($artist) }, $base, $songs );
+        if ( exists $songs->{ $self->_simplify($song) } ) {
+            return $self->_get_lyrics_uc_song( $songs->{ $self->_simplify($song) } );
         }
         else {
             return undef;
@@ -694,7 +699,7 @@ sub get_lyrics_uc {
     }
 }
 
-sub get_lyrics_uc_alpha {
+sub _get_lyrics_uc_alpha {
     my $self  = shift;
     my $alpha = shift;
     my $base  = shift;
@@ -707,12 +712,12 @@ sub get_lyrics_uc_alpha {
     #<a href="/artist_t/t-bone_lyrics.html" title="T-Bone lyrics of songs">T-Bone</a><br>
     #<a href="/artist_p/pj_harvey_lyrics.html" title="Pj Harvey lyrics of songs">Pj Harvey</a><br>
     while ( $res =~ /\<A HREF=\"(\/artist_.\/[^"]*)\"[^\>]*\>([^<]*)\</mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_uc_artist {
+sub _get_lyrics_uc_artist {
     my $self = shift;
     my $url  = shift;
     my $base = shift;
@@ -720,12 +725,12 @@ sub get_lyrics_uc_artist {
     my $res  = $self->fetch_url( "$url", 1 );
     $res =~ s/[\n\r]/ /g;
     while ( $res =~ /\<A HREF=\"(\/artist_.\/[^"]*)\"[^\>]*\>([^<]*)\</mgi ) {
-        $ret->{ $self->simplify($2) } = $base . $1;
+        $ret->{ $self->_simplify($2) } = $base . $1;
     }
     return $ret;
 }
 
-sub get_lyrics_uc_song {
+sub _get_lyrics_uc_song {
     my $self = shift;
     my $url  = shift;
     my $res  = $self->fetch_url( "$url", 1 );
@@ -1391,14 +1396,15 @@ L<Music::Tag::M4A>, L<Music::Tag::MP3>, L<Music::Tag::MusicBrainz>, L<Music::Tag
 
 Edward Allen III <ealleniii _at_ cpan _dot_ org>
 
-
-=head1 COPYRIGHT
-
-Copyright (c) 2007 Edward Allen III. Some rights reserved.
+=head1 LICENSE
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the Artistic License, distributed
 with Perl.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2007 Edward Allen III. Some rights reserved.
 
 
 =cut
@@ -1408,6 +1414,7 @@ with Perl.
 
 package Music::Tag::Auto::Rget::File;
 use strict;
+use warnings;
 use vars qw($AUTOLOAD);
 use IO::File;
 use File::Spec;
@@ -1420,21 +1427,25 @@ sub new {
     return $self;
 }
 
-sub basename {
+sub _basename {
 	my $file = shift;
-	my ($vol, $dir, $base) = File::Spec->splitpath($file);
-	return $base;
+	if ($file) {
+		my ($vol, $dir, $base) = File::Spec->splitpath($file);
+		return $base;
+	}
 }
 
-sub dirname {
+sub _dirname {
 	my $file = shift;
-	my ($vol, $dir, $base) = File::Spec->splitpath($file);
-	return File::Spec->catpath($vol, $dir);
+	if ($file) {
+		my ($vol, $dir, $base) = File::Spec->splitpath($file);
+		return File::Spec->catpath($vol, $dir);
+	}
 }
 
 sub open {
     my $self = shift;
-    my $dir  = dirname( $self->{filename} );
+    my $dir  = _dirname( $self->{filename} );
     unless ( -d $dir ) {
 
         #_mkdirp ($dir, 0775);
